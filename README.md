@@ -29,6 +29,10 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 - **Safe areas**: `viewport-fit=cover` and CSS `env(safe-area-inset-*)` handle the notch and home indicator.
 - **VAPID key**: Paste your server's Base64URL VAPID public key in the UI to test `PushManager.subscribe` and copy the resulting subscription JSON.
 
+## Push Backend (`server/`)
+
+A separate, zero-dependency Node.js 26 Web Push backend (VAPID JWT signing + RFC 8291 `aes128gcm` encryption) lives in [`server/`](server/). See [`server/README.md`](server/README.md) for setup, API endpoints, and NGINX proxy instructions.
+
 ## Upstream CVE Monitoring
 
 - Local: `npm run check:cve` (or `node scripts/check-cve.ts --level=high`)

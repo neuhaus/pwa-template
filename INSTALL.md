@@ -106,7 +106,7 @@ Edit [`src/sw.ts`](src/sw.ts):
    npx web-push generate-vapid-keys
    ```
 2. Paste the **Public Key** into the UI input (or wire it into `src/main.ts` / environment config via `import.meta.env.VITE_VAPID_PUBLIC_KEY`).
-3. When a user taps **Enable Push**, [`subscribeToPush`](src/push.ts) returns a `PushSubscription` JSON object (`endpoint`, `keys.p256dh`, `keys.auth`). Send that JSON to your backend to store and deliver push messages.
+3. When a user taps **Enable Push**, [`subscribeToPush`](src/push.ts) returns a `PushSubscription` JSON object (`endpoint`, `keys.p256dh`, `keys.auth`). Send that JSON to your backend to store and deliver push messages (see [`server/README.md`](server/README.md) for the included zero-dependency push backend).
 
 ---
 

@@ -1,0 +1,12 @@
+{
+  "name": "pwa-template-server",
+  "version": "1.0.0",
+  "description": "Minimal zero-dependency Web Push backend for pwa-template.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.ts",
+    "test": "node --test webpush.test.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
