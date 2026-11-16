@@ -59,35 +59,25 @@ Typecheck from the repository root:
 
 ---
 
-## 5. End-to-End Usage Example
+## 5. End-to-End Usage (Automatic via Browser)
 
-1. **Fetch the VAPID public key:**
-   ```bash
-   curl http://localhost:3000/api/vapid-public-key
-   ```
-2. **Subscribe in the PWA UI:**
-   - Paste the `publicKey` into the **VAPID Public Key** input in the PWA and click **Enable Push**.
-   - Copy the printed `PushSubscription` JSON.
-3. **Register the subscription on the server:**
-   ```bash
-   curl -X POST http://localhost:3000/api/subscriptions \
-     -H "Content-Type: application/json" \
-     -d '<PASTE_SUBSCRIPTION_JSON>'
-   ```
-4. **Send a push notification to all subscribers:**
-   ```bash
-   curl -X POST http://localhost:3000/api/send \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer change-me" \
-     -d '{"title":"Hello","body":"Push from server!","url":"/"}'
-   ```
-   - Expired subscriptions (`404` / `410`) are automatically removed.
-5. **Unsubscribe / remove a subscription:**
-   ```bash
-   curl -X DELETE http://localhost:3000/api/subscriptions \
-     -H "Content-Type: application/json" \
-     -d '{"endpoint":"<SUBSCRIPTION_ENDPOINT>"}'
-   ```
+When the server is running alongside `npm run dev` (or behind NGINX `/api/`), the browser UI handles everything automatically:
+
+1. Start the backend (`npm run dev:server` from the repo root) and the frontend (`npm run dev`).
+2. Open the PWA—it automatically fetches `/api/vapid-public-key` and fills in the **VAPID Public Key** field.
+3. Click **Enable Push**—the browser subscribes and automatically `POST`s the `PushSubscription` to `/api/subscriptions` (persisted in SQLite).
+4. Click **Send Server Push** in the UI to trigger `POST /api/send` (if `PUSH_ADMIN_TOKEN` is set, use `curl` below instead).
+5. Click **Disable Push**—the browser unsubscribes and automatically sends `DELETE /api/subscriptions`.
+
+### Manual `curl` Examples
+
+```bash
+# Send a push notification when PUSH_ADMIN_TOKEN is enabled
+curl -X POST http://localhost:3000/api/send \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer change-me" \
+  -d '{"title":"Hello","body":"Push from server!","url":"/"}'
+```
 
 ---
 

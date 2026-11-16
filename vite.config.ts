@@ -68,11 +68,17 @@ export default defineConfig(({ command }) => ({
   plugins: [etaAndPwaPlugin(command === 'build')],
   server: {
     headers: SECURITY_HEADERS,
+    proxy: {
+      '/api': 'http://127.0.0.1:3000',
+    },
   },
   preview: {
     headers: {
       ...SECURITY_HEADERS,
       'Content-Security-Policy': PROD_CSP,
+    },
+    proxy: {
+      '/api': 'http://127.0.0.1:3000',
     },
   },
   build: {

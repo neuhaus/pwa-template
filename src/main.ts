@@ -39,6 +39,7 @@ async function init(): Promise<void> {
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
   const subscribeBtn = document.getElementById('push-subscribe-btn') as HTMLButtonElement | null;
   const unsubscribeBtn = document.getElementById('push-unsubscribe-btn') as HTMLButtonElement | null;
+  const serverPushBtn = document.getElementById('server-push-btn') as HTMLButtonElement | null;
   const testNotifBtn = document.getElementById('test-notification-btn') as HTMLButtonElement | null;
   const subOutput = document.getElementById('push-subscription-output');
 
@@ -143,15 +144,34 @@ async function init(): Promise<void> {
     return;
   }
 
-  const syncSubscriptionUi = async () => {
+  let hasBackend = false;
+  if (vapidInput && !vapidInput.value.trim()) {
+    try {
+      const res = await fetch('/api/vapid-public-key');
+      if (res.ok) {
+        const data = (await res.json()) as { publicKey?: string };
+        if (data.publicKey) {
+          vapidInput.value = data.publicKey;
+          hasBackend = true;
+        }
+      }
+    } catch {
+      // Backend is optional; fall back to manual VAPID key entry.
+    }
+  }
+
+  const syncSubscriptionUi = async (statusOverride?: string) => {
     const existing = await registration.pushManager.getSubscription();
     if (pushStatus) {
-      pushStatus.textContent = existing
-        ? 'Subscribed to Web Push.'
-        : `Ready (permission: ${Notification.permission}).`;
+      pushStatus.textContent =
+        statusOverride ??
+        (existing
+          ? 'Subscribed to Web Push.'
+          : `Ready (permission: ${Notification.permission}).`);
     }
     if (subscribeBtn) subscribeBtn.hidden = Boolean(existing);
     if (unsubscribeBtn) unsubscribeBtn.hidden = !existing;
+    if (serverPushBtn) serverPushBtn.hidden = !(existing && hasBackend);
     if (subOutput) showSubscription(subOutput, existing);
   };
 
@@ -164,8 +184,24 @@ async function init(): Promise<void> {
       return;
     }
     try {
-      await subscribeToPush(registration, vapidKey);
-      await syncSubscriptionUi();
+      const sub = await subscribeToPush(registration, vapidKey);
+      let registeredOnServer = false;
+      try {
+        const res = await fetch('/api/subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub.toJSON()),
+        });
+        registeredOnServer = res.ok;
+        if (res.ok) hasBackend = true;
+      } catch {
+        // Static-only mode without backend
+      }
+      await syncSubscriptionUi(
+        registeredOnServer
+          ? 'Subscribed and registered with push server.'
+          : 'Subscribed in browser (no push server reachable).',
+      );
     } catch (err) {
       if (pushStatus) {
         pushStatus.textContent = `Subscribe failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -174,8 +210,43 @@ async function init(): Promise<void> {
   });
 
   unsubscribeBtn?.addEventListener('click', async () => {
+    const existing = await registration.pushManager.getSubscription();
     await unsubscribeFromPush(registration);
+    if (existing) {
+      try {
+        await fetch('/api/subscriptions', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: existing.endpoint }),
+        });
+      } catch {
+        // Ignore if backend is offline
+      }
+    }
     await syncSubscriptionUi();
+  });
+
+  serverPushBtn?.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'PWA Template',
+          body: 'Server push test succeeded!',
+          url: '/',
+        }),
+      });
+      if (pushStatus) {
+        pushStatus.textContent = res.ok
+          ? 'Server push sent.'
+          : `Server push failed (${res.status}).`;
+      }
+    } catch (err) {
+      if (pushStatus) {
+        pushStatus.textContent = `Server push failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    }
   });
 
   testNotifBtn?.addEventListener('click', async () => {
