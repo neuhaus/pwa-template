@@ -61,6 +61,15 @@
           />
         </label>
 
+        <label class="field" for="notification-privacy">
+          <span>Notification Preview Privacy</span>
+          <select id="notification-privacy">
+            <option value="full">Full message (subject &amp; body)</option>
+            <option value="sender">Sender / subject only</option>
+            <option value="generic">Generic notification only</option>
+          </select>
+        </label>
+
         <div class="actions">
           <button id="push-subscribe-btn" type="button">Enable Push</button>
           <button id="push-unsubscribe-btn" type="button" class="secondary" hidden>

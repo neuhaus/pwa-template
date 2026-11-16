@@ -5,6 +5,7 @@ import {
   PRECACHE_ASSETS,
   buildNotificationLaunchUrl,
   cleanupOldCaches,
+  formatNotificationForPrivacy,
   handleFetchRequest,
   parsePushPayload,
   precacheAppShell,
@@ -74,15 +75,48 @@ describe('parsePushPayload', () => {
 });
 
 describe('buildNotificationLaunchUrl', () => {
-  it('appends from=notification to root and subpath URLs', () => {
+  it('appends from=notification and optional title/body to root and subpath URLs', () => {
     assert.equal(
       buildNotificationLaunchUrl('/', 'https://example.com'),
       '/?from=notification',
     );
     assert.equal(
-      buildNotificationLaunchUrl('/pwa/?tab=inbox', 'https://example.com'),
-      '/pwa/?tab=inbox&from=notification',
+      buildNotificationLaunchUrl('/pwa/?tab=inbox', 'https://example.com', {
+        title: 'Hello',
+        body: 'World',
+      }),
+      '/pwa/?tab=inbox&from=notification&ntitle=Hello&nbody=World',
     );
+  });
+});
+
+describe('formatNotificationForPrivacy', () => {
+  const sample = {
+    title: 'Alice',
+    body: 'Secret project update',
+    url: '/',
+    icon: '/icons/icon-192.png',
+  };
+
+  it('shows full title and body in full mode', () => {
+    assert.deepEqual(formatNotificationForPrivacy(sample, 'full'), {
+      title: 'Alice',
+      body: 'Secret project update',
+    });
+  });
+
+  it('hides body in sender mode', () => {
+    assert.deepEqual(formatNotificationForPrivacy(sample, 'sender'), {
+      title: 'Alice',
+      body: 'New message (preview hidden).',
+    });
+  });
+
+  it('hides both sender and body in generic mode', () => {
+    assert.deepEqual(formatNotificationForPrivacy(sample, 'generic'), {
+      title: 'PWA Template',
+      body: 'You have a new notification.',
+    });
   });
 });
 

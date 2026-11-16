@@ -26,9 +26,47 @@ export interface PushPayload {
   icon: string;
 }
 
-export function buildNotificationLaunchUrl(targetUrl: string, origin: string): string {
+export type NotificationPrivacyMode = 'full' | 'sender' | 'generic';
+
+export const PREF_CACHE_NAME = 'pwa-template-prefs';
+export const PRIVACY_PREF_KEY = '/__notification-privacy-mode';
+
+export function formatNotificationForPrivacy(
+  payload: PushPayload,
+  mode: NotificationPrivacyMode,
+): { title: string; body: string } {
+  if (mode === 'generic') {
+    return { title: 'PWA Template', body: 'You have a new notification.' };
+  }
+  if (mode === 'sender') {
+    return { title: payload.title, body: 'New message (preview hidden).' };
+  }
+  return { title: payload.title, body: payload.body };
+}
+
+export async function readPrivacyMode(cacheStorage: CacheStorage): Promise<NotificationPrivacyMode> {
+  try {
+    const cache = await cacheStorage.open(PREF_CACHE_NAME);
+    const res = await cache.match(PRIVACY_PREF_KEY);
+    const value = (await res?.text())?.trim();
+    if (value === 'sender' || value === 'generic' || value === 'full') {
+      return value;
+    }
+  } catch {
+    // Fall back to full if CacheStorage is unavailable
+  }
+  return 'full';
+}
+
+export function buildNotificationLaunchUrl(
+  targetUrl: string,
+  origin: string,
+  meta?: { title?: string; body?: string },
+): string {
   const url = new URL(targetUrl, origin);
   url.searchParams.set('from', 'notification');
+  if (meta?.title) url.searchParams.set('ntitle', meta.title);
+  if (meta?.body) url.searchParams.set('nbody', meta.body);
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
@@ -65,7 +103,9 @@ export async function precacheAppShell(cacheStorage: CacheStorage): Promise<void
 export async function cleanupOldCaches(cacheStorage: CacheStorage): Promise<void> {
   const keys = await cacheStorage.keys();
   await Promise.all(
-    keys.filter((key) => key !== CACHE_NAME).map((key) => cacheStorage.delete(key)),
+    keys
+      .filter((key) => key !== CACHE_NAME && key !== PREF_CACHE_NAME)
+      .map((key) => cacheStorage.delete(key)),
   );
 }
 
@@ -147,25 +187,34 @@ if (isServiceWorkerScope) {
   sw.addEventListener('push', (event) => {
     const payload = parsePushPayload(event.data?.text());
     event.waitUntil(
-      sw.registration.showNotification(payload.title, {
-        body: payload.body,
-        icon: payload.icon,
-        badge: `${BASE_PATH}icons/icon-192.png`,
-        data: { url: payload.url },
+      readPrivacyMode(sw.caches).then((mode) => {
+        const display = formatNotificationForPrivacy(payload, mode);
+        return sw.registration.showNotification(display.title, {
+          body: display.body,
+          icon: payload.icon,
+          badge: `${BASE_PATH}icons/icon-192.png`,
+          data: { url: payload.url, title: payload.title, body: payload.body },
+        });
       }),
     );
   });
 
   sw.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const data = (event.notification.data as { url?: string } | undefined) ?? {};
-    const targetUrl = data.url ?? BASE_PATH;
-    const launchUrl = buildNotificationLaunchUrl(targetUrl, sw.location.origin);
+    const rawData =
+      (event.notification.data as { url?: string; title?: string; body?: string } | undefined) ??
+      {};
+    const data = {
+      url: rawData.url ?? BASE_PATH,
+      title: rawData.title ?? event.notification.title,
+      body: rawData.body ?? event.notification.body,
+    };
+    const launchUrl = buildNotificationLaunchUrl(data.url, sw.location.origin, data);
 
     event.waitUntil(
       sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
         for (const client of clients) {
-          if ('focus' in client && client.url.includes(targetUrl)) {
+          if ('focus' in client && client.url.includes(data.url)) {
             await client.focus();
             client.postMessage({ type: 'NOTIFICATION_CLICK', data });
             return client;

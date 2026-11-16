@@ -5,6 +5,12 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from './push.ts';
+import {
+  PREF_CACHE_NAME,
+  PRIVACY_PREF_KEY,
+  formatNotificationForPrivacy,
+  type NotificationPrivacyMode,
+} from './sw.ts';
 
 declare const __API_PREFIX__: string | undefined;
 
@@ -46,12 +52,19 @@ async function init(): Promise<void> {
   const notifDetail = document.getElementById('notification-launch-detail');
   const notifDismissBtn = document.getElementById('notification-launch-dismiss') as HTMLButtonElement | null;
 
-  const showNotificationLaunch = (mode: 'cold' | 'warm') => {
+  const showNotificationLaunch = (
+    mode: 'cold' | 'warm',
+    meta?: { title?: string; body?: string },
+  ) => {
     if (!notifBanner || !notifDetail) return;
-    notifDetail.textContent =
+    const prefix =
       mode === 'cold'
         ? 'Detected cold launch from a tapped notification.'
         : 'Detected warm focus from a tapped notification.';
+    const parts = [prefix];
+    if (meta?.title) parts.push(`Subject: ${meta.title}`);
+    if (meta?.body) parts.push(`Body: ${meta.body}`);
+    notifDetail.textContent = parts.join(' — ');
     notifBanner.hidden = false;
   };
 
@@ -61,13 +74,19 @@ async function init(): Promise<void> {
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('from') === 'notification') {
-    showNotificationLaunch('cold');
+    showNotificationLaunch('cold', {
+      title: params.get('ntitle') ?? undefined,
+      body: params.get('nbody') ?? undefined,
+    });
     params.delete('from');
+    params.delete('ntitle');
+    params.delete('nbody');
     const qs = params.toString();
     const cleanUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
     window.history.replaceState(null, '', cleanUrl);
   }
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
+  const privacySelect = document.getElementById('notification-privacy') as HTMLSelectElement | null;
   const subscribeBtn = document.getElementById('push-subscribe-btn') as HTMLButtonElement | null;
   const unsubscribeBtn = document.getElementById('push-unsubscribe-btn') as HTMLButtonElement | null;
   const serverPushBtn = document.getElementById('server-push-btn') as HTMLButtonElement | null;
@@ -109,6 +128,29 @@ async function init(): Promise<void> {
     if (appInstallBanner) appInstallBanner.hidden = true;
   });
 
+  const getSelectedPrivacyMode = (): NotificationPrivacyMode => {
+    const val = privacySelect?.value;
+    return val === 'sender' || val === 'generic' ? val : 'full';
+  };
+
+  if (privacySelect && 'caches' in window) {
+    void caches
+      .open(PREF_CACHE_NAME)
+      .then((cache) => cache.match(PRIVACY_PREF_KEY))
+      .then((res) => res?.text())
+      .then((saved) => {
+        if (saved === 'full' || saved === 'sender' || saved === 'generic') {
+          privacySelect.value = saved;
+        }
+      });
+
+    privacySelect.addEventListener('change', () => {
+      const mode = getSelectedPrivacyMode();
+      void caches
+        .open(PREF_CACHE_NAME)
+        .then((cache) => cache.put(PRIVACY_PREF_KEY, new Response(mode)));
+    });
+  }
   // Fetch VAPID public key immediately so it doesn't wait on Service Worker activation.
   let hasBackend = false;
   const vapidPromise = (async () => {
@@ -171,9 +213,11 @@ async function init(): Promise<void> {
     });
 
     navigator.serviceWorker.addEventListener('message', (event) => {
-      const msg = event.data as { type?: string } | undefined;
+      const msg = event.data as
+        | { type?: string; data?: { title?: string; body?: string } }
+        | undefined;
       if (msg?.type === 'NOTIFICATION_CLICK') {
-        showNotificationLaunch('warm');
+        showNotificationLaunch('warm', msg.data);
       }
     });
 
@@ -305,10 +349,16 @@ async function init(): Promise<void> {
       if (pushStatus) pushStatus.textContent = `Notification permission was ${permission}.`;
       return;
     }
-    await registration.showNotification('PWA Template', {
-      body: 'Local notification test succeeded.',
+    const title = 'PWA Template';
+    const body = 'Local notification test succeeded.';
+    const display = formatNotificationForPrivacy(
+      { title, body, url: BASE, icon: `${BASE}icons/icon-192.png` },
+      getSelectedPrivacyMode(),
+    );
+    await registration.showNotification(display.title, {
+      body: display.body,
       icon: `${BASE}icons/icon-192.png`,
-      data: { url: BASE },
+      data: { url: BASE, title, body },
     });
   });
 }
