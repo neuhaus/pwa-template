@@ -1,0 +1,7 @@
+<aside id="sw-update-banner" class="card banner" hidden>
+  <h2>Update Available</h2>
+  <p class="status-text">A new version of <%= it.appName %> is ready.</p>
+  <div class="actions">
+    <button id="sw-reload-btn" type="button">Reload to Update</button>
+  </div>
+</aside>

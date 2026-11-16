@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.sw.json --noEmit",
     "test": "node --test tests/*.test.ts",
+    "test:e2e": "node tests/e2e.ts",
     "check:cve": "node scripts/check-cve.ts",
     "generate:icons": "node scripts/generate-icons.ts"
   },
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "eta": "^4.6.0",
+    "playwright-core": "^1.65.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }

@@ -6,6 +6,11 @@ import {
   unsubscribeFromPush,
 } from './push.ts';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 function updateNetworkBadge(badge: HTMLElement): void {
   const online = navigator.onLine;
   badge.textContent = online ? 'Online' : 'Offline';
@@ -27,6 +32,10 @@ async function init(): Promise<void> {
   const swStatus = document.getElementById('sw-status');
   const pushStatus = document.getElementById('push-status');
   const iosBanner = document.getElementById('ios-install-banner');
+  const appInstallBanner = document.getElementById('app-install-banner');
+  const appInstallBtn = document.getElementById('app-install-btn') as HTMLButtonElement | null;
+  const swUpdateBanner = document.getElementById('sw-update-banner');
+  const swReloadBtn = document.getElementById('sw-reload-btn') as HTMLButtonElement | null;
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
   const subscribeBtn = document.getElementById('push-subscribe-btn') as HTMLButtonElement | null;
   const unsubscribeBtn = document.getElementById('push-unsubscribe-btn') as HTMLButtonElement | null;
@@ -43,6 +52,26 @@ async function init(): Promise<void> {
     iosBanner.hidden = false;
   }
 
+  let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event as BeforeInstallPromptEvent;
+    if (appInstallBanner) appInstallBanner.hidden = false;
+  });
+
+  appInstallBtn?.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    await deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (appInstallBanner) appInstallBanner.hidden = true;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (appInstallBanner) appInstallBanner.hidden = true;
+  });
+
   if (!('serviceWorker' in navigator)) {
     if (swStatus) swStatus.textContent = 'Service Workers are not supported in this browser.';
     if (pushStatus) pushStatus.textContent = 'Push notifications require Service Worker support.';
@@ -52,6 +81,40 @@ async function init(): Promise<void> {
   let registration: ServiceWorkerRegistration;
   try {
     registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+    const showUpdatePrompt = (waitingWorker: ServiceWorker | null) => {
+      if (!waitingWorker || !swUpdateBanner || !swReloadBtn) return;
+      swUpdateBanner.hidden = false;
+      swReloadBtn.addEventListener(
+        'click',
+        () => {
+          waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+        },
+        { once: true },
+      );
+    };
+
+    if (registration.waiting && navigator.serviceWorker.controller) {
+      showUpdatePrompt(registration.waiting);
+    }
+
+    registration.addEventListener('updatefound', () => {
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdatePrompt(registration.waiting ?? installing);
+        }
+      });
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+
     await navigator.serviceWorker.ready;
     if (swStatus) {
       swStatus.textContent = 'Active — app shell is cached for offline use.';

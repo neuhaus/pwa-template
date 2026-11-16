@@ -23,8 +23,15 @@
   content="<%= it.statusBarStyle %>"
 />
 <meta name="apple-mobile-web-app-title" content="<%= it.shortName %>" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
 <!-- Web App Manifest -->
 <link rel="manifest" href="/manifest.webmanifest" />
+<% if (it.isProd) { %>
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self';"
+/>
+<% } %>
 <title><%= it.appName %></title>

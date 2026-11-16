@@ -1,0 +1,9 @@
+<aside id="app-install-banner" class="card banner" hidden>
+  <h2>Install <%= it.appName %></h2>
+  <p class="status-text">
+    Install this app for quick launch and full offline access.
+  </p>
+  <div class="actions">
+    <button id="app-install-btn" type="button">Install App</button>
+  </div>
+</aside>

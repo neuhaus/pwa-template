@@ -5,6 +5,7 @@ export interface AppTemplateConfig {
   themeColor: string;
   themeColorLight: string;
   statusBarStyle: 'default' | 'black' | 'black-translucent';
+  isProd?: boolean;
 }
 
 export const appConfig: AppTemplateConfig = {

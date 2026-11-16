@@ -1,6 +1,9 @@
 /// <reference lib="webworker" />
 
-export const CACHE_NAME = 'pwa-template-v1';
+const CACHE_VERSION = /*__CACHE_VERSION__*/ 'dev';
+export const CACHE_NAME = `pwa-template-${CACHE_VERSION}`;
+
+const BUILD_ASSETS: readonly string[] = /*__PRECACHE_ASSETS__*/ [];
 
 export const PRECACHE_ASSETS: readonly string[] = [
   '/',
@@ -9,6 +12,7 @@ export const PRECACHE_ASSETS: readonly string[] = [
   '/icons/apple-touch-icon.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  ...BUILD_ASSETS,
 ];
 
 export interface PushPayload {
@@ -101,9 +105,14 @@ if (isServiceWorkerScope) {
   const sw = self as unknown as ServiceWorkerGlobalScope;
 
   sw.addEventListener('install', (event) => {
-    event.waitUntil(
-      precacheAppShell(sw.caches).then(() => sw.skipWaiting()),
-    );
+    event.waitUntil(precacheAppShell(sw.caches));
+  });
+
+  sw.addEventListener('message', (event) => {
+    const payload = event.data as { type?: string } | undefined;
+    if (payload?.type === 'SKIP_WAITING') {
+      void sw.skipWaiting();
+    }
   });
 
   sw.addEventListener('activate', (event) => {
