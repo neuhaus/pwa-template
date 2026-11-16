@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createSubscriptionStore } from './store.ts';
 import {
   generateVapidKeys,
   sendPushNotification,
@@ -25,7 +26,7 @@ const vapidKeys: VapidKeys =
         return generated;
       })();
 
-const subscriptions = new Map<string, PushSubscriptionData>();
+const subscriptions = createSubscriptionStore();
 
 function sendJson(res: ServerResponse, status: number, data: unknown): void {
   const headers: Record<string, string> = {
@@ -75,7 +76,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    sendJson(res, 200, { ok: true, subscriptions: subscriptions.size });
+    sendJson(res, 200, { ok: true, subscriptions: subscriptions.count() });
     return;
   }
 
@@ -91,8 +92,8 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { error: 'Invalid PushSubscription payload' });
         return;
       }
-      subscriptions.set(body.endpoint, body);
-      sendJson(res, 201, { ok: true, count: subscriptions.size });
+      subscriptions.upsert(body);
+      sendJson(res, 201, { ok: true, count: subscriptions.count() });
     } catch (err) {
       sendJson(res, 400, { error: err instanceof Error ? err.message : 'Invalid JSON' });
     }
@@ -106,7 +107,7 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { error: 'Missing endpoint' });
         return;
       }
-      const deleted = subscriptions.delete(body.endpoint);
+      const deleted = subscriptions.remove(body.endpoint);
       sendJson(res, 200, { ok: true, deleted });
     } catch (err) {
       sendJson(res, 400, { error: err instanceof Error ? err.message : 'Invalid JSON' });
@@ -123,10 +124,10 @@ const server = createServer(async (req, res) => {
     try {
       const payload = await readJsonBody<Record<string, unknown>>(req);
       const results = await Promise.all(
-        [...subscriptions.values()].map(async (sub) => {
+        subscriptions.list().map(async (sub) => {
           const response = await sendPushNotification(sub, payload, vapidKeys, VAPID_SUBJECT);
           if (response.status === 404 || response.status === 410) {
-            subscriptions.delete(sub.endpoint);
+            subscriptions.remove(sub.endpoint);
           }
           return { endpoint: sub.endpoint, status: response.status };
         }),
@@ -144,3 +145,10 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Push backend listening on http://localhost:${PORT}`);
 });
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    subscriptions.close();
+    server.close(() => process.exit(0));
+  });
+}

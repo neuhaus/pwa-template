@@ -28,6 +28,7 @@ Store `publicKey` and `privateKey` in your environment variables. Keep `privateK
 | Variable | Default | Description |
 | :--- | :--- | :--- |
 | `PORT` | `3000` | Port the HTTP server listens on. |
+| `DB_PATH` | `./subscriptions.sqlite` | Path to the SQLite database file (`node:sqlite`). |
 | `VAPID_PUBLIC_KEY` | *(ephemeral)* | Base64URL VAPID public key. |
 | `VAPID_PRIVATE_KEY` | *(ephemeral)* | Base64URL VAPID private key. |
 | `VAPID_SUBJECT` | `mailto:admin@example.com` | Contact `mailto:` or `https://` URI required by push services (including Apple). |
@@ -104,4 +105,4 @@ location /api/ {
 }
 ```
 
-> **Note:** Subscriptions are stored in memory in this minimal example. Replace the `subscriptions` `Map` in [`index.ts`](index.ts) with SQLite/Postgres/Redis for persistence across restarts.
+> **Persistence:** Subscriptions are stored in SQLite via Node 26's built-in `node:sqlite` (`DB_PATH`, default `./subscriptions.sqlite`).
