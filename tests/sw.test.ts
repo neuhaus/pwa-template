@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildNotificationLaunchUrl,
+  formatNotificationForPrivacy,
+  parsePushPayload,
+} from '../src/notifications.ts';
+import {
   CACHE_NAME,
   PRECACHE_ASSETS,
-  buildNotificationLaunchUrl,
   cleanupOldCaches,
-  formatNotificationForPrivacy,
   handleFetchRequest,
-  parsePushPayload,
   precacheAppShell,
 } from '../src/sw.ts';
 

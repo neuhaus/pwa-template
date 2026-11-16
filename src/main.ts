@@ -11,7 +11,7 @@ import {
   PRIVACY_PREF_KEY,
   formatNotificationForPrivacy,
   type NotificationPrivacyMode,
-} from './sw.ts';
+} from './notifications.ts';
 
 declare const __API_PREFIX__: string | undefined;
 

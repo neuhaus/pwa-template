@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { resolve } from 'node:path';
 import { Eta } from 'eta';
-import { defineConfig, type Plugin } from 'vite';
+import { build as viteBuild, defineConfig, type Plugin } from 'vite';
 import { appConfig } from './src/templates/app-config.ts';
 
 const rootDir = import.meta.dirname;
@@ -21,6 +21,8 @@ const PROD_CSP =
 
 function etaAndPwaPlugin(isProd: boolean): Plugin {
   const eta = new Eta({ views: templatesDir });
+  let emittedAssets: string[] = [];
+  let buildingSw = false;
 
   return {
     name: 'eta-html-and-pwa',
@@ -45,40 +47,71 @@ function etaAndPwaPlugin(isProd: boolean): Plugin {
       });
     },
     generateBundle(_options, bundle) {
-      const swChunk = bundle['sw.js'];
-      if (!swChunk || swChunk.type !== 'chunk') return;
-
+      if (buildingSw) return;
       const base = appConfig.basePath;
-      const assetUrls = Object.keys(bundle)
+      emittedAssets = Object.keys(bundle)
         .filter((fileName) => fileName !== 'sw.js' && fileName !== 'index.html')
         .sort()
         .map((fileName) => `${base}${fileName}`);
-
-      const version = createHash('sha256')
-        .update(assetUrls.join(','))
-        .digest('hex')
-        .slice(0, 8);
-
-      swChunk.code = swChunk.code.replace(
-        /(['"`])__PWA_SW_CONFIG__\1/g,
-        JSON.stringify(JSON.stringify({ basePath: base, cacheVersion: version, assets: assetUrls })),
-      );
     },
-    closeBundle() {
-      if (!isProd || appConfig.basePath === '/') return;
-      const manifestPath = resolve(rootDir, 'dist', 'manifest.webmanifest');
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
-        start_url: string;
-        scope: string;
-        icons: Array<{ src: string }>;
-      };
-      manifest.start_url = appConfig.basePath;
-      manifest.scope = appConfig.basePath;
-      manifest.icons = manifest.icons.map((icon) => ({
-        ...icon,
-        src: icon.src.startsWith('/') ? `${appConfig.basePath}${icon.src.slice(1)}` : icon.src,
-      }));
-      writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+    async closeBundle() {
+      if (!isProd || buildingSw) return;
+      buildingSw = true;
+      try {
+        const base = appConfig.basePath;
+        const version = createHash('sha256')
+          .update(emittedAssets.join(','))
+          .digest('hex')
+          .slice(0, 8);
+
+        // Bundle sw.ts as a standalone classic script (IIFE) with no import/export statements.
+        await viteBuild({
+          configFile: false,
+          logLevel: 'silent',
+          build: {
+            outDir: resolve(rootDir, 'dist'),
+            emptyOutDir: false,
+            lib: {
+              entry: resolve(rootDir, 'src', 'sw.ts'),
+              formats: ['iife'],
+              name: 'pwaSw',
+              fileName: () => 'sw.js',
+            },
+            rollupOptions: {
+              output: {
+                entryFileNames: 'sw.js',
+              },
+            },
+          },
+        });
+
+        const swPath = resolve(rootDir, 'dist', 'sw.js');
+        const swCode = readFileSync(swPath, 'utf8').replace(
+          /(['"`])__PWA_SW_CONFIG__\1/g,
+          JSON.stringify(
+            JSON.stringify({ basePath: base, cacheVersion: version, assets: emittedAssets }),
+          ),
+        );
+        writeFileSync(swPath, swCode, 'utf8');
+
+        if (base !== '/') {
+          const manifestPath = resolve(rootDir, 'dist', 'manifest.webmanifest');
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+            start_url: string;
+            scope: string;
+            icons: Array<{ src: string }>;
+          };
+          manifest.start_url = base;
+          manifest.scope = base;
+          manifest.icons = manifest.icons.map((icon) => ({
+            ...icon,
+            src: icon.src.startsWith('/') ? `${base}${icon.src.slice(1)}` : icon.src,
+          }));
+          writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+        }
+      } finally {
+        buildingSw = false;
+      }
     },
   };
 }
@@ -102,18 +135,6 @@ export default defineConfig(({ command }) => ({
     },
     proxy: {
       [apiPrefix]: 'http://127.0.0.1:3000',
-    },
-  },
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(rootDir, 'index.html'),
-        sw: resolve(rootDir, 'src', 'sw.ts'),
-      },
-      output: {
-        entryFileNames: (chunkInfo) =>
-          chunkInfo.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js',
-      },
     },
   },
 }));

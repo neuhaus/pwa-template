@@ -41,13 +41,18 @@ async function run(): Promise<void> {
 
     // 1. Verify Service Worker becomes active and VAPID key auto-fills from backend
     const swActive = await page.evaluate(async () => {
-      const reg = await navigator.serviceWorker.ready;
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timed out waiting for navigator.serviceWorker.ready')), 5000),
+      );
+      const reg = await Promise.race([navigator.serviceWorker.ready, timeout]);
       return Boolean(reg.active);
     });
     assert.equal(swActive, true, 'Service Worker should become active');
 
-    await page.waitForFunction(() =>
-      document.getElementById('sw-status')?.textContent?.includes('Active'),
+    await page.waitForFunction(
+      () => document.getElementById('sw-status')?.textContent?.includes('Active'),
+      undefined,
+      { timeout: 5000 },
     );
 
     const vapidValue = await page.locator('#vapid-key').inputValue();

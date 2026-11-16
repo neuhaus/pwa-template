@@ -1,5 +1,15 @@
 /// <reference lib="webworker" />
 
+import {
+  LAST_LAUNCH_KEY,
+  PREF_CACHE_NAME,
+  PRIVACY_PREF_KEY,
+  buildNotificationLaunchUrl,
+  formatNotificationForPrivacy,
+  parsePushPayload,
+  type NotificationPrivacyMode,
+} from './notifications.ts';
+
 const SW_CONFIG_RAW = '__PWA_SW_CONFIG__';
 const SW_CONFIG: { basePath: string; cacheVersion: string; assets: string[] } =
   SW_CONFIG_RAW.startsWith('__PWA_')
@@ -19,32 +29,6 @@ export const PRECACHE_ASSETS: readonly string[] = [
   ...SW_CONFIG.assets,
 ];
 
-export interface PushPayload {
-  title: string;
-  body: string;
-  url: string;
-  icon: string;
-}
-
-export type NotificationPrivacyMode = 'full' | 'sender' | 'generic';
-
-export const PREF_CACHE_NAME = 'pwa-template-prefs';
-export const PRIVACY_PREF_KEY = '/__notification-privacy-mode';
-export const LAST_LAUNCH_KEY = '/__last-notification-launch';
-
-export function formatNotificationForPrivacy(
-  payload: PushPayload,
-  mode: NotificationPrivacyMode,
-): { title: string; body: string } {
-  if (mode === 'generic') {
-    return { title: 'PWA Template', body: 'You have a new notification.' };
-  }
-  if (mode === 'sender') {
-    return { title: payload.title, body: 'New message (preview hidden).' };
-  }
-  return { title: payload.title, body: payload.body };
-}
-
 export async function readPrivacyMode(cacheStorage: CacheStorage): Promise<NotificationPrivacyMode> {
   try {
     const cache = await cacheStorage.open(PREF_CACHE_NAME);
@@ -57,44 +41,6 @@ export async function readPrivacyMode(cacheStorage: CacheStorage): Promise<Notif
     // Fall back to full if CacheStorage is unavailable
   }
   return 'full';
-}
-
-export function buildNotificationLaunchUrl(
-  targetUrl: string,
-  origin: string,
-  meta?: { title?: string; body?: string },
-): string {
-  const url = new URL(targetUrl, origin);
-  const hashParams = new URLSearchParams();
-  hashParams.set('from', 'notification');
-  if (meta?.title) hashParams.set('ntitle', meta.title);
-  if (meta?.body) hashParams.set('nbody', meta.body);
-  return `${url.pathname}${url.search}#${hashParams.toString()}`;
-}
-
-export function parsePushPayload(rawText: string | null | undefined): PushPayload {
-  const defaults: PushPayload = {
-    title: 'PWA Template',
-    body: 'You have a new notification.',
-    url: BASE_PATH,
-    icon: `${BASE_PATH}icons/icon-192.png`,
-  };
-
-  if (!rawText) {
-    return defaults;
-  }
-
-  try {
-    const parsed = JSON.parse(rawText) as Partial<PushPayload>;
-    return {
-      title: typeof parsed.title === 'string' && parsed.title ? parsed.title : defaults.title,
-      body: typeof parsed.body === 'string' ? parsed.body : defaults.body,
-      url: typeof parsed.url === 'string' && parsed.url ? parsed.url : defaults.url,
-      icon: typeof parsed.icon === 'string' && parsed.icon ? parsed.icon : defaults.icon,
-    };
-  } catch {
-    return { ...defaults, body: rawText };
-  }
 }
 
 export async function precacheAppShell(cacheStorage: CacheStorage): Promise<void> {
@@ -187,7 +133,7 @@ if (isServiceWorkerScope) {
   });
 
   sw.addEventListener('push', (event) => {
-    const payload = parsePushPayload(event.data?.text());
+    const payload = parsePushPayload(event.data?.text(), BASE_PATH);
     event.waitUntil(
       readPrivacyMode(sw.caches).then((mode) => {
         const display = formatNotificationForPrivacy(payload, mode);
