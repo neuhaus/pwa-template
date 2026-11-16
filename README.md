@@ -2,6 +2,8 @@
 
 Minimal, offline-first TypeScript PWA template with Web Push, Mobile Safari support, Eta HTML templating, native Node tests, and upstream CVE auditing.
 
+See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testing, and customization instructions.
+
 ## Stack
 
 - **Zero runtime browser dependencies** (pure TypeScript + Web APIs)
