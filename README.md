@@ -15,7 +15,8 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 
 - `npm run dev` — Start Vite dev server (renders Eta templates and serves `/sw.js`)
 - `npm run build` — Build production bundle to `dist/` (`dist/index.html`, `dist/sw.js`, `dist/manifest.webmanifest`)
-- `npm run preview` — Preview the production build locally
+- `npm start` — Build `dist/` and start `vite preview` automatically
+- `npm run preview` — Preview the existing `dist/` build locally
 - `npm run typecheck` — Typecheck app, tests, scripts, and Service Worker (`tsconfig.sw.json`)
 - `npm test` — Run all unit tests
 - `npm run test:e2e` — Run headless Chromium E2E test (Service Worker activation + offline reload)
