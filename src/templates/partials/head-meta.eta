@@ -4,7 +4,16 @@
   content="width=device-width, initial-scale=1.0, viewport-fit=cover"
 />
 <meta name="description" content="<%= it.description %>" />
-<meta name="theme-color" content="<%= it.themeColor %>" />
+<meta
+  name="theme-color"
+  content="<%= it.themeColorLight %>"
+  media="(prefers-color-scheme: light)"
+/>
+<meta
+  name="theme-color"
+  content="<%= it.themeColor %>"
+  media="(prefers-color-scheme: dark)"
+/>
 
 <!-- Mobile Safari / iOS PWA configuration -->
 <meta name="apple-mobile-web-app-capable" content="yes" />

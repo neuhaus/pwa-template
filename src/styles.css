@@ -1,13 +1,28 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
   --bg: #0f172a;
   --surface: #1e293b;
   --border: #475569;
   --text: #f8fafc;
   --muted: #cbd5e1;
   --accent: #38bdf8;
+  --accent-text: #082f49;
   --ok: #4ade80;
   --warn: #fbbf24;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #cbd5e1;
+    --text: #0f172a;
+    --muted: #334155;
+    --accent: #0369a1;
+    --accent-text: #ffffff;
+    --ok: #15803d;
+    --warn: #b45309;
+  }
 }
 
 *,
@@ -138,7 +153,7 @@ button {
   border-radius: 0.5rem;
   border: none;
   background: var(--accent);
-  color: #082f49;
+  color: var(--accent-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;

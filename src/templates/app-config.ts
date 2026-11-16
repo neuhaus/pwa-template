@@ -3,6 +3,7 @@ export interface AppTemplateConfig {
   shortName: string;
   description: string;
   themeColor: string;
+  themeColorLight: string;
   statusBarStyle: 'default' | 'black' | 'black-translucent';
 }
 
@@ -11,5 +12,6 @@ export const appConfig: AppTemplateConfig = {
   shortName: 'PWA',
   description: 'Minimal offline-first TypeScript PWA with Web Push and Mobile Safari support.',
   themeColor: '#0f172a',
+  themeColorLight: '#f8fafc',
   statusBarStyle: 'black-translucent',
 };
