@@ -1,10 +1,13 @@
 /// <reference lib="webworker" />
 
-const BASE_PATH = /*__BASE_PATH__*/ '/';
-const CACHE_VERSION = /*__CACHE_VERSION__*/ 'dev';
-export const CACHE_NAME = `pwa-template-${CACHE_VERSION}`;
+const SW_CONFIG_RAW = '__PWA_SW_CONFIG__';
+const SW_CONFIG: { basePath: string; cacheVersion: string; assets: string[] } =
+  SW_CONFIG_RAW.startsWith('__PWA_')
+    ? { basePath: '/', cacheVersion: 'dev', assets: [] }
+    : (JSON.parse(SW_CONFIG_RAW) as { basePath: string; cacheVersion: string; assets: string[] });
 
-const BUILD_ASSETS: readonly string[] = /*__PRECACHE_ASSETS__*/ [];
+const BASE_PATH = SW_CONFIG.basePath;
+export const CACHE_NAME = `pwa-template-${SW_CONFIG.cacheVersion}`;
 
 export const PRECACHE_ASSETS: readonly string[] = [
   BASE_PATH,
@@ -13,7 +16,7 @@ export const PRECACHE_ASSETS: readonly string[] = [
   `${BASE_PATH}icons/apple-touch-icon.png`,
   `${BASE_PATH}icons/icon-192.png`,
   `${BASE_PATH}icons/icon-512.png`,
-  ...BUILD_ASSETS,
+  ...SW_CONFIG.assets,
 ];
 
 export interface PushPayload {

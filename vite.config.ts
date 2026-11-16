@@ -59,10 +59,10 @@ function etaAndPwaPlugin(isProd: boolean): Plugin {
         .digest('hex')
         .slice(0, 8);
 
-      swChunk.code = swChunk.code
-        .replace(/\/\*__BASE_PATH__\*\/\s*["']\/["']/, JSON.stringify(base))
-        .replace(/\/\*__CACHE_VERSION__\*\/\s*["']dev["']/, JSON.stringify(version))
-        .replace(/\/\*__PRECACHE_ASSETS__\*\/\s*\[\]/, JSON.stringify(assetUrls));
+      swChunk.code = swChunk.code.replace(
+        /(['"`])__PWA_SW_CONFIG__\1/g,
+        JSON.stringify(JSON.stringify({ basePath: base, cacheVersion: version, assets: assetUrls })),
+      );
     },
     closeBundle() {
       if (!isProd || appConfig.basePath === '/') return;
