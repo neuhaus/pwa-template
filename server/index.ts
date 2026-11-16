@@ -8,6 +8,8 @@ import {
 } from './webpush.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
+const BASE_PATH = (process.env.BASE_PATH ?? '').replace(/\/+$/, '');
+const API_PREFIX = `/${(process.env.API_PREFIX ?? 'api').replace(/^\/+|\/+$/g, '')}`;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? 'mailto:admin@example.com';
 const ADMIN_TOKEN = process.env.PUSH_ADMIN_TOKEN;
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
@@ -69,23 +71,27 @@ function isValidSubscription(sub: unknown): sub is PushSubscriptionData {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  const pathname =
+    BASE_PATH && url.pathname.startsWith(BASE_PATH)
+      ? url.pathname.slice(BASE_PATH.length) || '/'
+      : url.pathname;
 
   if (req.method === 'OPTIONS' && CORS_ORIGIN) {
     sendJson(res, 204, null);
     return;
   }
 
-  if (req.method === 'GET' && url.pathname === '/health') {
+  if (req.method === 'GET' && pathname === '/health') {
     sendJson(res, 200, { ok: true, subscriptions: subscriptions.count() });
     return;
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/vapid-public-key') {
+  if (req.method === 'GET' && pathname === `${API_PREFIX}/vapid-public-key`) {
     sendJson(res, 200, { publicKey: vapidKeys.publicKey });
     return;
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/subscriptions') {
+  if (req.method === 'POST' && pathname === `${API_PREFIX}/subscriptions`) {
     try {
       const body = await readJsonBody<unknown>(req);
       if (!isValidSubscription(body)) {
@@ -100,7 +106,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'DELETE' && url.pathname === '/api/subscriptions') {
+  if (req.method === 'DELETE' && pathname === `${API_PREFIX}/subscriptions`) {
     try {
       const body = await readJsonBody<{ endpoint?: string }>(req);
       if (!body.endpoint) {
@@ -115,7 +121,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/send') {
+  if (req.method === 'POST' && pathname === `${API_PREFIX}/send`) {
     if (ADMIN_TOKEN && req.headers.authorization !== `Bearer ${ADMIN_TOKEN}`) {
       sendJson(res, 401, { error: 'Unauthorized' });
       return;

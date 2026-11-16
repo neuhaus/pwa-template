@@ -28,6 +28,8 @@ Store `publicKey` and `privateKey` in your environment variables. Keep `privateK
 | Variable | Default | Description |
 | :--- | :--- | :--- |
 | `PORT` | `3000` | Port the HTTP server listens on. |
+| `BASE_PATH` | `""` | Optional URL prefix (e.g. `/pwa`) so routes are served at `/pwa/api/...`. |
+| `API_PREFIX` | `/api` | API route prefix (e.g. `API_PREFIX=/server` serves `/server/vapid-public-key`, `/server/subscriptions`, `/server/send`). |
 | `DB_PATH` | `./subscriptions.sqlite` | Path to the SQLite database file (`node:sqlite`). |
 | `VAPID_PUBLIC_KEY` | *(ephemeral)* | Base64URL VAPID public key. |
 | `VAPID_PRIVATE_KEY` | *(ephemeral)* | Base64URL VAPID private key. |
@@ -107,5 +109,25 @@ ProxyPass /api/ http://127.0.0.1:3000/api/
 ProxyPassReverse /api/ http://127.0.0.1:3000/api/
 RequestHeader set X-Forwarded-Proto "https"
 ```
+
+### Subpath Deployment (`/pwa/api/`)
+
+If the PWA is built with `BASE_PATH=/pwa/`, it calls `/pwa/api/*` while the backend listens at `/api/*`.
+
+- **NGINX:**
+  ```nginx
+  location /pwa/api/ {
+      rewrite ^/pwa(/api/.*)$ $1 break;
+      proxy_pass http://127.0.0.1:3000;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-Proto $scheme;
+  }
+  ```
+- **Apache:**
+  ```apache
+  ProxyPass /pwa/api/ http://127.0.0.1:3000/api/
+  ProxyPassReverse /pwa/api/ http://127.0.0.1:3000/api/
+  ```
 
 > **Persistence:** Subscriptions are stored in SQLite via Node 26's built-in `node:sqlite` (`DB_PATH`, default `./subscriptions.sqlite`).

@@ -66,7 +66,8 @@ npm run preview
    - `shortName`: Used for `apple-mobile-web-app-title` on iOS Home Screen.
    - `description`: Meta description and subtitle.
    - `themeColor`, `themeColorLight`, and `statusBarStyle`: Device-aware dark/light theme colors (`prefers-color-scheme`) and iOS status-bar appearance.
-2. Update [`public/manifest.webmanifest`](public/manifest.webmanifest) to match `name`, `short_name`, `description`, `theme_color`, and `background_color`.
+   - `basePath`: Defaults to `'/'` (or set via `BASE_PATH`, e.g., `BASE_PATH=/pwa/ npm run build`). This automatically prefixes asset URLs, `sw.js` registration & precache paths, `manifest.webmanifest`, and `/api/` requests.
+2. Update [`public/manifest.webmanifest`](public/manifest.webmanifest) to match `name`, `short_name`, `description`, `theme_color`, and `background_color` (for subpath builds, `BASE_PATH` rewrites `start_url`, `scope`, and `icons` in `dist/manifest.webmanifest` automatically).
 
 ### B. App Icons
 
@@ -202,3 +203,20 @@ server {
     </Location>
 </VirtualHost>
 ```
+
+### Subpath Deployment (`BASE_PATH`)
+
+If you deploy under a subpath (e.g., `https://example.com/pwa/`), build with `BASE_PATH`:
+
+```bash
+BASE_PATH=/pwa/ npm run build
+```
+
+To also change the backend endpoint prefix from `/api` (e.g. to `/server`), set `API_PREFIX` on both the build and the server:
+
+```bash
+BASE_PATH=/pwa/ API_PREFIX=/server npm run build
+API_PREFIX=/server npm run dev:server
+```
+
+Then serve `dist/` at `/pwa/` and proxy `/pwa/api/` (or `/pwa/server/`) to the push backend (see [`server/README.md`](server/README.md#6-proxying-behind-nginx-or-apache)).

@@ -1,17 +1,18 @@
 /// <reference lib="webworker" />
 
+const BASE_PATH = /*__BASE_PATH__*/ '/';
 const CACHE_VERSION = /*__CACHE_VERSION__*/ 'dev';
 export const CACHE_NAME = `pwa-template-${CACHE_VERSION}`;
 
 const BUILD_ASSETS: readonly string[] = /*__PRECACHE_ASSETS__*/ [];
 
 export const PRECACHE_ASSETS: readonly string[] = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icons/apple-touch-icon.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  BASE_PATH,
+  `${BASE_PATH}index.html`,
+  `${BASE_PATH}manifest.webmanifest`,
+  `${BASE_PATH}icons/apple-touch-icon.png`,
+  `${BASE_PATH}icons/icon-192.png`,
+  `${BASE_PATH}icons/icon-512.png`,
   ...BUILD_ASSETS,
 ];
 
@@ -26,8 +27,8 @@ export function parsePushPayload(rawText: string | null | undefined): PushPayloa
   const defaults: PushPayload = {
     title: 'PWA Template',
     body: 'You have a new notification.',
-    url: '/',
-    icon: '/icons/icon-192.png',
+    url: BASE_PATH,
+    icon: `${BASE_PATH}icons/icon-192.png`,
   };
 
   if (!rawText) {
@@ -74,7 +75,10 @@ export async function handleFetchRequest(
       }
       return networkResponse;
     } catch {
-      const cached = (await cache.match(request)) ?? (await cache.match('/index.html')) ?? (await cache.match('/'));
+      const cached =
+        (await cache.match(request)) ??
+        (await cache.match(`${BASE_PATH}index.html`)) ??
+        (await cache.match(BASE_PATH));
       if (cached) {
         return cached;
       }
@@ -137,7 +141,7 @@ if (isServiceWorkerScope) {
       sw.registration.showNotification(payload.title, {
         body: payload.body,
         icon: payload.icon,
-        badge: '/icons/icon-192.png',
+        badge: `${BASE_PATH}icons/icon-192.png`,
         data: { url: payload.url },
       }),
     );
@@ -146,7 +150,7 @@ if (isServiceWorkerScope) {
   sw.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const targetUrl =
-      (event.notification.data as { url?: string } | undefined)?.url ?? '/';
+      (event.notification.data as { url?: string } | undefined)?.url ?? BASE_PATH;
 
     event.waitUntil(
       sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

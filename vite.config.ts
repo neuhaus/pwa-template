@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { resolve } from 'node:path';
 import { Eta } from 'eta';
@@ -8,6 +8,7 @@ import { appConfig } from './src/templates/app-config.ts';
 
 const rootDir = import.meta.dirname;
 const templatesDir = resolve(rootDir, 'src', 'templates');
+const apiPrefix = `/${(process.env.API_PREFIX ?? 'api').replace(/^\/+|\/+$/g, '')}`;
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -47,10 +48,11 @@ function etaAndPwaPlugin(isProd: boolean): Plugin {
       const swChunk = bundle['sw.js'];
       if (!swChunk || swChunk.type !== 'chunk') return;
 
+      const base = appConfig.basePath;
       const assetUrls = Object.keys(bundle)
         .filter((fileName) => fileName !== 'sw.js' && fileName !== 'index.html')
         .sort()
-        .map((fileName) => `/${fileName}`);
+        .map((fileName) => `${base}${fileName}`);
 
       const version = createHash('sha256')
         .update(assetUrls.join(','))
@@ -58,18 +60,39 @@ function etaAndPwaPlugin(isProd: boolean): Plugin {
         .slice(0, 8);
 
       swChunk.code = swChunk.code
+        .replace(/\/\*__BASE_PATH__\*\/\s*["']\/["']/, JSON.stringify(base))
         .replace(/\/\*__CACHE_VERSION__\*\/\s*["']dev["']/, JSON.stringify(version))
         .replace(/\/\*__PRECACHE_ASSETS__\*\/\s*\[\]/, JSON.stringify(assetUrls));
+    },
+    closeBundle() {
+      if (!isProd || appConfig.basePath === '/') return;
+      const manifestPath = resolve(rootDir, 'dist', 'manifest.webmanifest');
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+        start_url: string;
+        scope: string;
+        icons: Array<{ src: string }>;
+      };
+      manifest.start_url = appConfig.basePath;
+      manifest.scope = appConfig.basePath;
+      manifest.icons = manifest.icons.map((icon) => ({
+        ...icon,
+        src: icon.src.startsWith('/') ? `${appConfig.basePath}${icon.src.slice(1)}` : icon.src,
+      }));
+      writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
     },
   };
 }
 
 export default defineConfig(({ command }) => ({
+  base: appConfig.basePath,
+  define: {
+    __API_PREFIX__: JSON.stringify(apiPrefix),
+  },
   plugins: [etaAndPwaPlugin(command === 'build')],
   server: {
     headers: SECURITY_HEADERS,
     proxy: {
-      '/api': 'http://127.0.0.1:3000',
+      [apiPrefix]: 'http://127.0.0.1:3000',
     },
   },
   preview: {
@@ -78,7 +101,7 @@ export default defineConfig(({ command }) => ({
       'Content-Security-Policy': PROD_CSP,
     },
     proxy: {
-      '/api': 'http://127.0.0.1:3000',
+      [apiPrefix]: 'http://127.0.0.1:3000',
     },
   },
   build: {

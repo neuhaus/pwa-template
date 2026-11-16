@@ -5,7 +5,15 @@ export interface AppTemplateConfig {
   themeColor: string;
   themeColorLight: string;
   statusBarStyle: 'default' | 'black' | 'black-translucent';
+  basePath: string;
   isProd?: boolean;
+}
+
+export function normalizeBasePath(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === '/') return '/';
+  const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`;
 }
 
 export const appConfig: AppTemplateConfig = {
@@ -15,4 +23,7 @@ export const appConfig: AppTemplateConfig = {
   themeColor: '#0f172a',
   themeColorLight: '#f8fafc',
   statusBarStyle: 'default',
+  basePath: normalizeBasePath(
+    (typeof process !== 'undefined' ? process.env.BASE_PATH : undefined) ?? '/',
+  ),
 };

@@ -6,6 +6,11 @@ import {
   unsubscribeFromPush,
 } from './push.ts';
 
+declare const __API_PREFIX__: string | undefined;
+
+const BASE = import.meta.env.BASE_URL;
+const API_BASE = `${BASE}${(typeof __API_PREFIX__ === 'string' ? __API_PREFIX__ : 'api').replace(/^\/+|\/+$/g, '')}`;
+
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -78,7 +83,7 @@ async function init(): Promise<void> {
   const vapidPromise = (async () => {
     if (!vapidInput || vapidInput.value.trim()) return;
     try {
-      const res = await fetch('/api/vapid-public-key');
+      const res = await fetch(`${API_BASE}/vapid-public-key`);
       if (res.ok) {
         const data = (await res.json()) as { publicKey?: string };
         if (data.publicKey) {
@@ -99,7 +104,7 @@ async function init(): Promise<void> {
 
   let registration: ServiceWorkerRegistration;
   try {
-    registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    registration = await navigator.serviceWorker.register(`${BASE}sw.js`, { scope: BASE });
 
     const showUpdatePrompt = (waitingWorker: ServiceWorker | null) => {
       if (!waitingWorker || !swUpdateBanner || !swReloadBtn) return;
@@ -194,7 +199,7 @@ async function init(): Promise<void> {
       const sub = await subscribeToPush(registration, vapidKey);
       let registeredOnServer = false;
       try {
-        const res = await fetch('/api/subscriptions', {
+        const res = await fetch(`${API_BASE}/subscriptions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sub.toJSON()),
@@ -221,7 +226,7 @@ async function init(): Promise<void> {
     await unsubscribeFromPush(registration);
     if (existing) {
       try {
-        await fetch('/api/subscriptions', {
+        await fetch(`${API_BASE}/subscriptions`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint: existing.endpoint }),
@@ -235,13 +240,13 @@ async function init(): Promise<void> {
 
   serverPushBtn?.addEventListener('click', async () => {
     try {
-      const res = await fetch('/api/send', {
+      const res = await fetch(`${API_BASE}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: 'PWA Template',
           body: 'Server push test succeeded!',
-          url: '/',
+          url: BASE,
         }),
       });
       if (pushStatus) {
@@ -264,8 +269,8 @@ async function init(): Promise<void> {
     }
     await registration.showNotification('PWA Template', {
       body: 'Local notification test succeeded.',
-      icon: '/icons/icon-192.png',
-      data: { url: '/' },
+      icon: `${BASE}icons/icon-192.png`,
+      data: { url: BASE },
     });
   });
 }
