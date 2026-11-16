@@ -1,0 +1,8 @@
+<aside id="ios-install-banner" class="card banner" hidden>
+  <h2>Install on iOS for Push &amp; Offline</h2>
+  <p>
+    On Mobile Safari, Web Push notifications require adding this app to your
+    Home Screen. Tap <strong>Share</strong> and choose
+    <strong>Add to Home Screen</strong>.
+  </p>
+</aside>
