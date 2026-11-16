@@ -73,6 +73,24 @@ async function init(): Promise<void> {
     if (appInstallBanner) appInstallBanner.hidden = true;
   });
 
+  // Fetch VAPID public key immediately so it doesn't wait on Service Worker activation.
+  let hasBackend = false;
+  const vapidPromise = (async () => {
+    if (!vapidInput || vapidInput.value.trim()) return;
+    try {
+      const res = await fetch('/api/vapid-public-key');
+      if (res.ok) {
+        const data = (await res.json()) as { publicKey?: string };
+        if (data.publicKey) {
+          vapidInput.value = data.publicKey;
+          hasBackend = true;
+        }
+      }
+    } catch {
+      // Backend is optional; fall back to manual VAPID key entry.
+    }
+  })();
+
   if (!('serviceWorker' in navigator)) {
     if (swStatus) swStatus.textContent = 'Service Workers are not supported in this browser.';
     if (pushStatus) pushStatus.textContent = 'Push notifications require Service Worker support.';
@@ -116,9 +134,12 @@ async function init(): Promise<void> {
       window.location.reload();
     });
 
-    await navigator.serviceWorker.ready;
-    if (swStatus) {
-      swStatus.textContent = 'Active — app shell is cached for offline use.';
+    if (registration.active) {
+      if (swStatus) swStatus.textContent = 'Active — app shell is cached for offline use.';
+    } else {
+      void navigator.serviceWorker.ready.then(() => {
+        if (swStatus) swStatus.textContent = 'Active — app shell is cached for offline use.';
+      });
     }
   } catch (err) {
     if (swStatus) {
@@ -126,6 +147,8 @@ async function init(): Promise<void> {
     }
     return;
   }
+
+  await vapidPromise;
 
   const support = getPushSupportState();
   if (support === 'ios-needs-install') {
@@ -142,22 +165,6 @@ async function init(): Promise<void> {
     if (subscribeBtn) subscribeBtn.disabled = true;
     if (testNotifBtn) testNotifBtn.disabled = true;
     return;
-  }
-
-  let hasBackend = false;
-  if (vapidInput && !vapidInput.value.trim()) {
-    try {
-      const res = await fetch('/api/vapid-public-key');
-      if (res.ok) {
-        const data = (await res.json()) as { publicKey?: string };
-        if (data.publicKey) {
-          vapidInput.value = data.publicKey;
-          hasBackend = true;
-        }
-      }
-    } catch {
-      // Backend is optional; fall back to manual VAPID key entry.
-    }
   }
 
   const syncSubscriptionUi = async (statusOverride?: string) => {

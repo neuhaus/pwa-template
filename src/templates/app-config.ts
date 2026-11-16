@@ -14,5 +14,5 @@ export const appConfig: AppTemplateConfig = {
   description: 'Minimal offline-first TypeScript PWA with Web Push and Mobile Safari support.',
   themeColor: '#0f172a',
   themeColorLight: '#f8fafc',
-  statusBarStyle: 'black-translucent',
+  statusBarStyle: 'default',
 };
