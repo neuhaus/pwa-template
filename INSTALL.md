@@ -22,6 +22,7 @@ npm run typecheck
 npm test
 npm run check:cve
 npm run build
+npm run test:e2e
 ```
 
 If all commands exit with `0`, your environment is ready.
@@ -64,7 +65,7 @@ npm run preview
    - `appName`: Page `<title>` and main `<h1>` heading.
    - `shortName`: Used for `apple-mobile-web-app-title` on iOS Home Screen.
    - `description`: Meta description and subtitle.
-   - `themeColor` and `statusBarStyle`: Browser/status-bar appearance.
+   - `themeColor`, `themeColorLight`, and `statusBarStyle`: Device-aware dark/light theme colors (`prefers-color-scheme`) and iOS status-bar appearance.
 2. Update [`public/manifest.webmanifest`](public/manifest.webmanifest) to match `name`, `short_name`, `description`, `theme_color`, and `background_color`.
 
 ### B. App Icons
@@ -84,16 +85,18 @@ Mobile Safari requires a real PNG for `apple-touch-icon` (`180x180`).
 
 - [`index.html`](index.html) is rendered through Eta (`eta` `^4.6.0`) before Vite bundles assets.
 - Add or edit partials in `src/templates/partials/`:
-  - [`src/templates/partials/head-meta.eta`](src/templates/partials/head-meta.eta)
-  - [`src/templates/partials/ios-install.eta`](src/templates/partials/ios-install.eta)
+  - [`src/templates/partials/head-meta.eta`](src/templates/partials/head-meta.eta) (Mobile Safari meta tags, icons, manifest, production CSP)
+  - [`src/templates/partials/sw-update.eta`](src/templates/partials/sw-update.eta) (Service Worker update/reload prompt)
+  - [`src/templates/partials/app-install.eta`](src/templates/partials/app-install.eta) (Android/Desktop `beforeinstallprompt` banner)
+  - [`src/templates/partials/ios-install.eta`](src/templates/partials/ios-install.eta) (iOS Home Screen instruction banner)
 - Use `<%= it.value %>` for HTML-escaped values and `<%~ include('partials/name', it) %>` for partials.
 
 ### D. Offline Caching (Service Worker)
 
 Edit [`src/sw.ts`](src/sw.ts):
 
-- Bump `CACHE_NAME` (e.g., `'my-app-v1'` → `'my-app-v2'`) whenever you deploy breaking asset changes so `activate` purges old caches.
-- Add any extra static routes/files to `PRECACHE_ASSETS`.
+- In production builds (`npm run build`), [`vite.config.ts`](vite.config.ts) automatically injects a content-hashed `CACHE_VERSION` and all emitted `dist/assets/*` files into `dist/sw.js` so `activate` purges stale caches and users see the update banner.
+- Add any extra static routes/files in `public/` to `PRECACHE_ASSETS`.
 - Navigation requests (`request.mode === 'navigate'`) use **network-first** with fallback to cached `/index.html`. Other same-origin `GET` requests use **cache-first**.
 
 ### E. Web Push & VAPID Keys
@@ -118,3 +121,54 @@ Edit [`src/sw.ts`](src/sw.ts):
   node scripts/check-cve.ts --level=high
   ```
 - Automated CI checks run on every push, pull request, and every Monday at 09:00 UTC via [`.github/workflows/security.yml`](.github/workflows/security.yml).
+
+---
+
+## 6. Production Deployment (NGINX Best Practices)
+
+When serving `dist/` behind NGINX over HTTPS:
+
+- **Never long-cache `sw.js` or `index.html`:** Set `Cache-Control: no-cache` so browsers always revalidate for Service Worker updates.
+- **Long-cache hashed `/assets/`:** Vite content-hashes JS/CSS filenames, so `/assets/` can safely use `Cache-Control: public, max-age=31536000, immutable`.
+- **Serve `.webmanifest` with `application/manifest+json`** (and keep `try_files $uri $uri/ /index.html;` for SPA routes).
+- **Set security headers:**
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name example.com;
+
+    root /var/www/pwa-template/dist;
+    index index.html;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self';" always;
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location = /manifest.webmanifest {
+        types { application/manifest+json webmanifest; }
+        add_header Cache-Control "no-cache";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+> **NGINX gotcha:** `add_header` inside a `location` block overrides server-level `add_header` directives. Put the security headers in a shared snippet (e.g., `include snippets/security-headers.conf;`) and include it in any `location` that sets `Cache-Control`.

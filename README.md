@@ -9,7 +9,7 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 - **Zero runtime browser dependencies** (pure TypeScript + Web APIs)
 - **Build**: `vite` (`^8.3.8`), `typescript` (`^7.0.2`)
 - **HTML Templating**: `eta` (`^4.6.0`, zero dependencies)
-- **Tests**: Node's built-in `node:test` + `node:assert/strict`
+- **Tests**: Node's built-in `node:test` + `node:assert/strict`, plus `playwright-core` (`^1.65.1`) for headless Chromium E2E offline verification
 
 ## Scripts
 
@@ -18,6 +18,7 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 - `npm run preview` — Preview the production build locally
 - `npm run typecheck` — Typecheck app, tests, scripts, and Service Worker (`tsconfig.sw.json`)
 - `npm test` — Run all unit tests
+- `npm run test:e2e` — Run headless Chromium E2E test (Service Worker activation + offline reload)
 - `npm run check:cve` — Run upstream CVE audit via `npm audit --json` (exits non-zero on `moderate` or higher)
 - `npm run generate:icons` — Regenerate PNG icons in `public/icons/`
 
@@ -31,4 +32,4 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 ## Upstream CVE Monitoring
 
 - Local: `npm run check:cve` (or `node scripts/check-cve.ts --level=high`)
-- CI: `.github/workflows/security.yml` runs typecheck, tests, build, and `npm run check:cve` on push, PR, and a weekly Monday cron schedule.
+- CI: `.github/workflows/security.yml` runs typecheck, unit tests, build, `npm run check:cve`, and Playwright E2E offline verification on push, PR, and a weekly Monday cron schedule.
