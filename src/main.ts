@@ -6,6 +6,7 @@ import {
   unsubscribeFromPush,
 } from './push.ts';
 import {
+  LAST_LAUNCH_KEY,
   PREF_CACHE_NAME,
   PRIVACY_PREF_KEY,
   formatNotificationForPrivacy,
@@ -75,13 +76,33 @@ async function init(): Promise<void> {
 
   const hashRaw = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
   const hashParams = new URLSearchParams(hashRaw);
-  if (hashParams.get('from') === 'notification') {
-    showNotificationLaunch('cold', {
-      title: hashParams.get('ntitle') ?? undefined,
-      body: hashParams.get('nbody') ?? undefined,
-    });
+  const launchedFromHash = hashParams.get('from') === 'notification';
+  const hashMeta = {
+    title: hashParams.get('ntitle') ?? undefined,
+    body: hashParams.get('nbody') ?? undefined,
+  };
+  if (launchedFromHash) {
+    showNotificationLaunch('cold', hashMeta);
     const cleanUrl = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, '', cleanUrl);
+  }
+
+  if ('caches' in window) {
+    void caches
+      .open(PREF_CACHE_NAME)
+      .then(async (cache) => {
+        const res = await cache.match(LAST_LAUNCH_KEY);
+        if (!res) return;
+        const stored = (await res.json()) as { title?: string; body?: string };
+        await cache.delete(LAST_LAUNCH_KEY);
+        showNotificationLaunch('cold', {
+          title: stored.title || hashMeta.title,
+          body: stored.body || hashMeta.body,
+        });
+      })
+      .catch(() => {
+        // Ignore CacheStorage read errors
+      });
   }
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
   const privacySelect = document.getElementById('notification-privacy') as HTMLSelectElement | null;

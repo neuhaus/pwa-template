@@ -30,6 +30,7 @@ export type NotificationPrivacyMode = 'full' | 'sender' | 'generic';
 
 export const PREF_CACHE_NAME = 'pwa-template-prefs';
 export const PRIVACY_PREF_KEY = '/__notification-privacy-mode';
+export const LAST_LAUNCH_KEY = '/__last-notification-launch';
 
 export function formatNotificationForPrivacy(
   payload: PushPayload,
@@ -220,6 +221,15 @@ if (isServiceWorkerScope) {
             client.postMessage({ type: 'NOTIFICATION_CLICK', data });
             return client;
           }
+        }
+        try {
+          const cache = await sw.caches.open(PREF_CACHE_NAME);
+          await cache.put(
+            LAST_LAUNCH_KEY,
+            new Response(JSON.stringify({ title: data.title, body: data.body })),
+          );
+        } catch {
+          // Fall back to hash params if CacheStorage write fails
         }
         return sw.clients.openWindow(launchUrl);
       }),
