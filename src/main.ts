@@ -256,138 +256,149 @@ async function init(): Promise<void> {
 
   await vapidPromise;
 
-  if (!isStandaloneMode()) {
-    return;
-  }
+  let pushUiInitialized = false;
+  const setupPushUi = async () => {
+    if (pushUiInitialized || !isStandaloneMode()) return;
+    pushUiInitialized = true;
 
-  if (pushCard) {
-    pushCard.hidden = false;
-  }
-
-  const support = getPushSupportState();
-  if (support === 'ios-needs-install') {
-    if (pushStatus) {
-      pushStatus.textContent = 'Install this app to your iOS Home Screen to enable Web Push.';
+    if (pushCard) {
+      pushCard.hidden = false;
     }
-    if (subscribeBtn) subscribeBtn.disabled = true;
-    if (testNotifBtn) testNotifBtn.disabled = true;
-    return;
-  }
 
-  if (support === 'unsupported') {
-    if (pushStatus) pushStatus.textContent = 'Push notifications are not supported in this browser.';
-    if (subscribeBtn) subscribeBtn.disabled = true;
-    if (testNotifBtn) testNotifBtn.disabled = true;
-    return;
-  }
-
-  const syncSubscriptionUi = async (statusOverride?: string) => {
-    const existing = await registration.pushManager.getSubscription();
-    if (pushStatus) {
-      pushStatus.textContent =
-        statusOverride ??
-        (existing
-          ? 'Subscribed to Web Push.'
-          : `Ready (permission: ${Notification.permission}).`);
-    }
-    if (subscribeBtn) subscribeBtn.hidden = Boolean(existing);
-    if (unsubscribeBtn) unsubscribeBtn.hidden = !existing;
-    if (serverPushBtn) serverPushBtn.hidden = !(existing && hasBackend);
-    if (subOutput) showSubscription(subOutput, existing);
-  };
-
-  await syncSubscriptionUi();
-
-  subscribeBtn?.addEventListener('click', async () => {
-    const vapidKey = vapidInput?.value.trim() ?? '';
-    if (!vapidKey) {
-      if (pushStatus) pushStatus.textContent = 'Enter a VAPID public key first.';
+    const support = getPushSupportState();
+    if (support === 'ios-needs-install') {
+      if (pushStatus) {
+        pushStatus.textContent = 'Install this app to your iOS Home Screen to enable Web Push.';
+      }
+      if (subscribeBtn) subscribeBtn.disabled = true;
+      if (testNotifBtn) testNotifBtn.disabled = true;
       return;
     }
-    try {
-      const sub = await subscribeToPush(registration, vapidKey);
-      let registeredOnServer = false;
+
+    if (support === 'unsupported') {
+      if (pushStatus) pushStatus.textContent = 'Push notifications are not supported in this browser.';
+      if (subscribeBtn) subscribeBtn.disabled = true;
+      if (testNotifBtn) testNotifBtn.disabled = true;
+      return;
+    }
+
+    const syncSubscriptionUi = async (statusOverride?: string) => {
+      const existing = await registration.pushManager.getSubscription();
+      if (pushStatus) {
+        pushStatus.textContent =
+          statusOverride ??
+          (existing
+            ? 'Subscribed to Web Push.'
+            : `Ready (permission: ${Notification.permission}).`);
+      }
+      if (subscribeBtn) subscribeBtn.hidden = Boolean(existing);
+      if (unsubscribeBtn) unsubscribeBtn.hidden = !existing;
+      if (serverPushBtn) serverPushBtn.hidden = !(existing && hasBackend);
+      if (subOutput) showSubscription(subOutput, existing);
+    };
+
+    await syncSubscriptionUi();
+
+    subscribeBtn?.addEventListener('click', async () => {
+      const vapidKey = vapidInput?.value.trim() ?? '';
+      if (!vapidKey) {
+        if (pushStatus) pushStatus.textContent = 'Enter a VAPID public key first.';
+        return;
+      }
       try {
-        const res = await fetch(`${API_BASE}/subscriptions`, {
+        const sub = await subscribeToPush(registration, vapidKey);
+        let registeredOnServer = false;
+        try {
+          const res = await fetch(`${API_BASE}/subscriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub.toJSON()),
+          });
+          registeredOnServer = res.ok;
+          if (res.ok) hasBackend = true;
+        } catch {
+          // Static-only mode without backend
+        }
+        await syncSubscriptionUi(
+          registeredOnServer
+            ? 'Subscribed and registered with push server.'
+            : 'Subscribed in browser (no push server reachable).',
+        );
+      } catch (err) {
+        if (pushStatus) {
+          pushStatus.textContent = `Subscribe failed: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    });
+
+    unsubscribeBtn?.addEventListener('click', async () => {
+      const existing = await registration.pushManager.getSubscription();
+      await unsubscribeFromPush(registration);
+      if (existing) {
+        try {
+          await fetch(`${API_BASE}/subscriptions`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: existing.endpoint }),
+          });
+        } catch {
+          // Ignore if backend is offline
+        }
+      }
+      await syncSubscriptionUi();
+    });
+
+    serverPushBtn?.addEventListener('click', async () => {
+      try {
+        const res = await fetch(`${API_BASE}/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub.toJSON()),
+          body: JSON.stringify({
+            title: 'PWA Template',
+            body: 'Server push test succeeded!',
+            url: BASE,
+          }),
         });
-        registeredOnServer = res.ok;
-        if (res.ok) hasBackend = true;
-      } catch {
-        // Static-only mode without backend
+        if (pushStatus) {
+          pushStatus.textContent = res.ok
+            ? 'Server push sent.'
+            : `Server push failed (${res.status}).`;
+        }
+      } catch (err) {
+        if (pushStatus) {
+          pushStatus.textContent = `Server push failed: ${err instanceof Error ? err.message : String(err)}`;
+        }
       }
-      await syncSubscriptionUi(
-        registeredOnServer
-          ? 'Subscribed and registered with push server.'
-          : 'Subscribed in browser (no push server reachable).',
-      );
-    } catch (err) {
-      if (pushStatus) {
-        pushStatus.textContent = `Subscribe failed: ${err instanceof Error ? err.message : String(err)}`;
-      }
-    }
-  });
-
-  unsubscribeBtn?.addEventListener('click', async () => {
-    const existing = await registration.pushManager.getSubscription();
-    await unsubscribeFromPush(registration);
-    if (existing) {
-      try {
-        await fetch(`${API_BASE}/subscriptions`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint: existing.endpoint }),
-        });
-      } catch {
-        // Ignore if backend is offline
-      }
-    }
-    await syncSubscriptionUi();
-  });
-
-  serverPushBtn?.addEventListener('click', async () => {
-    try {
-      const res = await fetch(`${API_BASE}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'PWA Template',
-          body: 'Server push test succeeded!',
-          url: BASE,
-        }),
-      });
-      if (pushStatus) {
-        pushStatus.textContent = res.ok
-          ? 'Server push sent.'
-          : `Server push failed (${res.status}).`;
-      }
-    } catch (err) {
-      if (pushStatus) {
-        pushStatus.textContent = `Server push failed: ${err instanceof Error ? err.message : String(err)}`;
-      }
-    }
-  });
-
-  testNotifBtn?.addEventListener('click', async () => {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      if (pushStatus) pushStatus.textContent = `Notification permission was ${permission}.`;
-      return;
-    }
-    const title = 'PWA Template';
-    const body = 'Local notification test succeeded.';
-    const display = formatNotificationForPrivacy(
-      { title, body, url: BASE, icon: `${BASE}icons/icon-192.png` },
-      getSelectedPrivacyMode(),
-    );
-    await registration.showNotification(display.title, {
-      body: display.body,
-      icon: `${BASE}icons/icon-192.png`,
-      data: { url: BASE, title, body },
     });
-  });
+
+    testNotifBtn?.addEventListener('click', async () => {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        if (pushStatus) pushStatus.textContent = `Notification permission was ${permission}.`;
+        return;
+      }
+      const title = 'PWA Template';
+      const body = 'Local notification test succeeded.';
+      const display = formatNotificationForPrivacy(
+        { title, body, url: BASE, icon: `${BASE}icons/icon-192.png` },
+        getSelectedPrivacyMode(),
+      );
+      await registration.showNotification(display.title, {
+        body: display.body,
+        icon: `${BASE}icons/icon-192.png`,
+        data: { url: BASE, title, body },
+      });
+    });
+  };
+
+  await setupPushUi();
+
+  if (typeof window.matchMedia === 'function') {
+    window
+      .matchMedia('(display-mode: standalone)')
+      .addEventListener('change', () => void setupPushUi());
+  }
+  window.addEventListener('appinstalled', () => void setupPushUi());
 }
 
 void init();
