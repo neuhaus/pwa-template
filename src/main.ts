@@ -42,6 +42,7 @@ async function init(): Promise<void> {
   const networkBadge = document.getElementById('network-status');
   const manualReloadBtn = document.getElementById('manual-reload-btn') as HTMLButtonElement | null;
   const swStatus = document.getElementById('sw-status');
+  const pushCard = document.getElementById('push-card');
   const pushStatus = document.getElementById('push-status');
   const iosBanner = document.getElementById('ios-install-banner');
   const appInstallBanner = document.getElementById('app-install-banner');
@@ -72,17 +73,14 @@ async function init(): Promise<void> {
     if (notifBanner) notifBanner.hidden = true;
   });
 
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('from') === 'notification') {
+  const hashRaw = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+  const hashParams = new URLSearchParams(hashRaw);
+  if (hashParams.get('from') === 'notification') {
     showNotificationLaunch('cold', {
-      title: params.get('ntitle') ?? undefined,
-      body: params.get('nbody') ?? undefined,
+      title: hashParams.get('ntitle') ?? undefined,
+      body: hashParams.get('nbody') ?? undefined,
     });
-    params.delete('from');
-    params.delete('ntitle');
-    params.delete('nbody');
-    const qs = params.toString();
-    const cleanUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, '', cleanUrl);
   }
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
@@ -236,6 +234,14 @@ async function init(): Promise<void> {
   }
 
   await vapidPromise;
+
+  if (!isStandaloneMode()) {
+    return;
+  }
+
+  if (pushCard) {
+    pushCard.hidden = false;
+  }
 
   const support = getPushSupportState();
   if (support === 'ios-needs-install') {

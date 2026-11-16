@@ -55,6 +55,7 @@ async function run(): Promise<void> {
 
     assert.equal(await page.locator('#sw-update-banner').isVisible(), false, 'Update banner should be hidden');
     assert.equal(await page.locator('#app-install-banner').isVisible(), false, 'Install banner should be hidden');
+    assert.equal(await page.locator('#push-card').isVisible(), false, 'Push card should be hidden outside standalone mode');
 
     assert.deepEqual(errors, [], `Unexpected online browser errors: ${errors.join('; ')}`);
 
@@ -71,6 +72,9 @@ async function run(): Promise<void> {
     console.log('E2E PWA verification passed (Service Worker + VAPID auto-fill + offline reload).');
   } finally {
     await browser.close();
+    if ('closeAllConnections' in server.httpServer) {
+      (server.httpServer as { closeAllConnections: () => void }).closeAllConnections();
+    }
     await server.httpServer.close();
     backend.kill();
   }

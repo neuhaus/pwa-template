@@ -64,10 +64,11 @@ export function buildNotificationLaunchUrl(
   meta?: { title?: string; body?: string },
 ): string {
   const url = new URL(targetUrl, origin);
-  url.searchParams.set('from', 'notification');
-  if (meta?.title) url.searchParams.set('ntitle', meta.title);
-  if (meta?.body) url.searchParams.set('nbody', meta.body);
-  return `${url.pathname}${url.search}${url.hash}`;
+  const hashParams = new URLSearchParams();
+  hashParams.set('from', 'notification');
+  if (meta?.title) hashParams.set('ntitle', meta.title);
+  if (meta?.body) hashParams.set('nbody', meta.body);
+  return `${url.pathname}${url.search}#${hashParams.toString()}`;
 }
 
 export function parsePushPayload(rawText: string | null | undefined): PushPayload {

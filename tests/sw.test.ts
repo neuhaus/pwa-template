@@ -75,17 +75,17 @@ describe('parsePushPayload', () => {
 });
 
 describe('buildNotificationLaunchUrl', () => {
-  it('appends from=notification and optional title/body to root and subpath URLs', () => {
+  it('appends from=notification and optional title/body in URL hash', () => {
     assert.equal(
       buildNotificationLaunchUrl('/', 'https://example.com'),
-      '/?from=notification',
+      '/#from=notification',
     );
     assert.equal(
       buildNotificationLaunchUrl('/pwa/?tab=inbox', 'https://example.com', {
         title: 'Hello',
         body: 'World',
       }),
-      '/pwa/?tab=inbox&from=notification&ntitle=Hello&nbody=World',
+      '/pwa/?tab=inbox#from=notification&ntitle=Hello&nbody=World',
     );
   });
 });
