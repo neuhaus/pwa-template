@@ -6,7 +6,7 @@ Step-by-step instructions for setting up, testing, and customizing this PWA temp
 
 ## 1. Prerequisites
 
-- **Node.js** 22.13+ or 24+ (uses native TypeScript execution for scripts/tests and `node:test`).
+- **Node.js** 26+ (uses native TypeScript execution for scripts/tests and `node:test`).
 - **npm** 10+ (for `npm audit --json` CVE checks).
 - **HTTPS** when testing on a physical iOS/Android device (Service Workers and Web Push require HTTPS outside `localhost`).
 
