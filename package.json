@@ -21,7 +21,7 @@
     "mobile-safari",
     "eta"
   ],
-  "license": "MIT",
+  "license": "SEE LICENCE IN LICENCE",
   "devDependencies": {
     "@types/node": "^26.6.6",
     "eta": "^4.6.0",
