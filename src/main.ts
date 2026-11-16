@@ -60,6 +60,7 @@ async function init(): Promise<void> {
 
   let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
   window.addEventListener('beforeinstallprompt', (event) => {
+    if (isStandaloneMode()) return;
     event.preventDefault();
     deferredInstallPrompt = event as BeforeInstallPromptEvent;
     if (appInstallBanner) appInstallBanner.hidden = false;

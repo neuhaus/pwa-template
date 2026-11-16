@@ -53,6 +53,9 @@ async function run(): Promise<void> {
     const vapidValue = await page.locator('#vapid-key').inputValue();
     assert.ok(vapidValue.length > 20, 'VAPID public key should auto-fill from /api/vapid-public-key');
 
+    assert.equal(await page.locator('#sw-update-banner').isVisible(), false, 'Update banner should be hidden');
+    assert.equal(await page.locator('#app-install-banner').isVisible(), false, 'Install banner should be hidden');
+
     assert.deepEqual(errors, [], `Unexpected online browser errors: ${errors.join('; ')}`);
 
     // 2. Verify offline navigation works from Service Worker cache
