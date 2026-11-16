@@ -34,6 +34,7 @@ function showSubscription(output: HTMLElement, sub: PushSubscription | null): vo
 
 async function init(): Promise<void> {
   const networkBadge = document.getElementById('network-status');
+  const manualReloadBtn = document.getElementById('manual-reload-btn') as HTMLButtonElement | null;
   const swStatus = document.getElementById('sw-status');
   const pushStatus = document.getElementById('push-status');
   const iosBanner = document.getElementById('ios-install-banner');
@@ -78,6 +79,10 @@ async function init(): Promise<void> {
     window.addEventListener('online', () => updateNetworkBadge(networkBadge));
     window.addEventListener('offline', () => updateNetworkBadge(networkBadge));
   }
+
+  manualReloadBtn?.addEventListener('click', () => {
+    window.location.reload();
+  });
 
   if (iosBanner && isIosDevice(navigator.userAgent, navigator.maxTouchPoints) && !isStandaloneMode()) {
     iosBanner.hidden = false;
