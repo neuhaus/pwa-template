@@ -124,9 +124,9 @@ Edit [`src/sw.ts`](src/sw.ts):
 
 ---
 
-## 6. Production Deployment (NGINX Best Practices)
+## 6. Production Deployment (NGINX & Apache Best Practices)
 
-When serving `dist/` behind NGINX over HTTPS:
+When serving `dist/` behind NGINX or Apache over HTTPS:
 
 - **Never long-cache `sw.js` or `index.html`:** Set `Cache-Control: no-cache` so browsers always revalidate for Service Worker updates.
 - **Long-cache hashed `/assets/`:** Vite content-hashes JS/CSS filenames, so `/assets/` can safely use `Cache-Control: public, max-age=31536000, immutable`.
@@ -172,3 +172,33 @@ server {
 ```
 
 > **NGINX gotcha:** `add_header` inside a `location` block overrides server-level `add_header` directives. Put the security headers in a shared snippet (e.g., `include snippets/security-headers.conf;`) and include it in any `location` that sets `Cache-Control`.
+
+### Apache (`mod_headers`, `mod_mime`, `mod_dir`)
+
+```apache
+<VirtualHost *:443>
+    ServerName example.com
+    DocumentRoot /var/www/pwa-template/dist
+
+    SSLEngine on
+    # SSLCertificateFile /path/to/fullchain.pem
+    # SSLCertificateKeyFile /path/to/privkey.pem
+
+    AddType application/manifest+json .webmanifest
+    FallbackResource /index.html
+
+    Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self';"
+
+    <LocationMatch "^/(sw\.js|index\.html|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </LocationMatch>
+
+    <Location "/assets/">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </Location>
+</VirtualHost>
+```

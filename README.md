@@ -2,7 +2,7 @@
 
 Minimal, offline-first TypeScript PWA template with Web Push, Mobile Safari support, Eta HTML templating, native Node tests, and upstream CVE auditing.
 
-See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testing, and customization instructions.
+See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testing, customization, and NGINX/Apache deployment instructions.
 
 ## Stack
 
@@ -31,7 +31,7 @@ See [INSTALL.md](INSTALL.md) for step-by-step installation, Mobile Safari testin
 
 ## Push Backend (`server/`)
 
-A separate, zero-dependency Node.js 26 Web Push backend (VAPID JWT signing + RFC 8291 `aes128gcm` encryption) lives in [`server/`](server/). See [`server/README.md`](server/README.md) for setup, API endpoints, and NGINX proxy instructions.
+A separate, zero-dependency Node.js 26 Web Push backend (VAPID JWT signing + RFC 8291 `aes128gcm` encryption) lives in [`server/`](server/). See [`server/README.md`](server/README.md) for setup, API endpoints, and NGINX/Apache proxy instructions.
 
 ## Upstream CVE Monitoring
 

@@ -81,7 +81,9 @@ curl -X POST http://localhost:3000/api/send \
 
 ---
 
-## 6. Proxying Behind NGINX
+## 6. Proxying Behind NGINX or Apache
+
+### NGINX
 
 Add this block to your NGINX `server` configuration so `/api/` is served on the same HTTPS origin as the PWA:
 
@@ -93,6 +95,17 @@ location /api/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
+```
+
+### Apache (`mod_proxy`, `mod_proxy_http`, `mod_headers`)
+
+Add these directives inside your Apache `<VirtualHost *:443>` block (before `FallbackResource /index.html` if using SPA fallback):
+
+```apache
+ProxyPreserveHost On
+ProxyPass /api/ http://127.0.0.1:3000/api/
+ProxyPassReverse /api/ http://127.0.0.1:3000/api/
+RequestHeader set X-Forwarded-Proto "https"
 ```
 
 > **Persistence:** Subscriptions are stored in SQLite via Node 26's built-in `node:sqlite` (`DB_PATH`, default `./subscriptions.sqlite`).
