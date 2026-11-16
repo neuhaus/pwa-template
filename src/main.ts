@@ -41,6 +41,31 @@ async function init(): Promise<void> {
   const appInstallBtn = document.getElementById('app-install-btn') as HTMLButtonElement | null;
   const swUpdateBanner = document.getElementById('sw-update-banner');
   const swReloadBtn = document.getElementById('sw-reload-btn') as HTMLButtonElement | null;
+  const notifBanner = document.getElementById('notification-launch-banner');
+  const notifDetail = document.getElementById('notification-launch-detail');
+  const notifDismissBtn = document.getElementById('notification-launch-dismiss') as HTMLButtonElement | null;
+
+  const showNotificationLaunch = (mode: 'cold' | 'warm') => {
+    if (!notifBanner || !notifDetail) return;
+    notifDetail.textContent =
+      mode === 'cold'
+        ? 'Detected cold launch from a tapped notification.'
+        : 'Detected warm focus from a tapped notification.';
+    notifBanner.hidden = false;
+  };
+
+  notifDismissBtn?.addEventListener('click', () => {
+    if (notifBanner) notifBanner.hidden = true;
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') === 'notification') {
+    showNotificationLaunch('cold');
+    params.delete('from');
+    const qs = params.toString();
+    const cleanUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    window.history.replaceState(null, '', cleanUrl);
+  }
   const vapidInput = document.getElementById('vapid-key') as HTMLInputElement | null;
   const subscribeBtn = document.getElementById('push-subscribe-btn') as HTMLButtonElement | null;
   const unsubscribeBtn = document.getElementById('push-unsubscribe-btn') as HTMLButtonElement | null;
@@ -138,6 +163,13 @@ async function init(): Promise<void> {
       if (refreshing) return;
       refreshing = true;
       window.location.reload();
+    });
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const msg = event.data as { type?: string } | undefined;
+      if (msg?.type === 'NOTIFICATION_CLICK') {
+        showNotificationLaunch('warm');
+      }
     });
 
     if (registration.active) {

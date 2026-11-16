@@ -17,6 +17,16 @@
       <%~ include('partials/app-install', it) %>
       <%~ include('partials/ios-install', it) %>
 
+      <aside id="notification-launch-banner" class="card banner" hidden>
+        <h2>Launched from Notification</h2>
+        <p id="notification-launch-detail" class="status-text" aria-live="polite"></p>
+        <div class="actions">
+          <button id="notification-launch-dismiss" type="button" class="secondary">
+            Dismiss
+          </button>
+        </div>
+      </aside>
+
       <section class="card" aria-labelledby="sw-heading">
         <h2 id="sw-heading">Offline &amp; Service Worker</h2>
         <p id="sw-status" class="status-text" aria-live="polite">Registering service worker…</p>

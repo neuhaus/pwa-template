@@ -26,6 +26,12 @@ export interface PushPayload {
   icon: string;
 }
 
+export function buildNotificationLaunchUrl(targetUrl: string, origin: string): string {
+  const url = new URL(targetUrl, origin);
+  url.searchParams.set('from', 'notification');
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function parsePushPayload(rawText: string | null | undefined): PushPayload {
   const defaults: PushPayload = {
     title: 'PWA Template',
@@ -152,17 +158,20 @@ if (isServiceWorkerScope) {
 
   sw.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const targetUrl =
-      (event.notification.data as { url?: string } | undefined)?.url ?? BASE_PATH;
+    const data = (event.notification.data as { url?: string } | undefined) ?? {};
+    const targetUrl = data.url ?? BASE_PATH;
+    const launchUrl = buildNotificationLaunchUrl(targetUrl, sw.location.origin);
 
     event.waitUntil(
-      sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
         for (const client of clients) {
           if ('focus' in client && client.url.includes(targetUrl)) {
-            return client.focus();
+            await client.focus();
+            client.postMessage({ type: 'NOTIFICATION_CLICK', data });
+            return client;
           }
         }
-        return sw.clients.openWindow(targetUrl);
+        return sw.clients.openWindow(launchUrl);
       }),
     );
   });

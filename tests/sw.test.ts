@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   CACHE_NAME,
   PRECACHE_ASSETS,
+  buildNotificationLaunchUrl,
   cleanupOldCaches,
   handleFetchRequest,
   parsePushPayload,
@@ -69,6 +70,19 @@ describe('parsePushPayload', () => {
   it('returns defaults for empty payload', () => {
     const payload = parsePushPayload(null);
     assert.equal(payload.title, 'PWA Template');
+  });
+});
+
+describe('buildNotificationLaunchUrl', () => {
+  it('appends from=notification to root and subpath URLs', () => {
+    assert.equal(
+      buildNotificationLaunchUrl('/', 'https://example.com'),
+      '/?from=notification',
+    );
+    assert.equal(
+      buildNotificationLaunchUrl('/pwa/?tab=inbox', 'https://example.com'),
+      '/pwa/?tab=inbox&from=notification',
+    );
   });
 });
 
