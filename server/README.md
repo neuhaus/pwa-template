@@ -74,12 +74,20 @@ When the server is running alongside `npm run dev` (or behind NGINX `/api/`), th
 ### Manual `curl` Examples
 
 ```bash
-# Send a push notification when PUSH_ADMIN_TOKEN is enabled
+# Send a push notification to all subscribers (when PUSH_ADMIN_TOKEN is enabled)
 curl -X POST http://localhost:3000/api/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer change-me" \
   -d '{"title":"Hello","body":"Push from server!","url":"/"}'
+
+# Or target a single user (associated via userId / X-User-Id on POST /api/subscriptions)
+curl -X POST http://localhost:3000/api/send \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer change-me" \
+  -d '{"userId":"alice","title":"Hello Alice","body":"Private message"}'
 ```
+
+> **Auth note:** In production, derive `userId` from your authenticated session or reverse-proxy auth header (`X-User-Id`) rather than trusting an unauthenticated client-supplied `userId`.
 
 ---
 

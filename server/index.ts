@@ -98,7 +98,11 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { error: 'Invalid PushSubscription payload' });
         return;
       }
-      subscriptions.upsert(body);
+      const rawUserId =
+        (body as { userId?: unknown }).userId ?? req.headers['x-user-id'];
+      const userId =
+        typeof rawUserId === 'string' && rawUserId.trim() ? rawUserId.trim() : null;
+      subscriptions.upsert(body, userId);
       sendJson(res, 201, { ok: true, count: subscriptions.count() });
     } catch (err) {
       sendJson(res, 400, { error: err instanceof Error ? err.message : 'Invalid JSON' });
@@ -128,9 +132,14 @@ const server = createServer(async (req, res) => {
     }
 
     try {
-      const payload = await readJsonBody<Record<string, unknown>>(req);
+      const body = await readJsonBody<Record<string, unknown>>(req);
+      const { userId: rawUserId, ...payload } = body;
+      const targetUserId =
+        typeof rawUserId === 'string' && rawUserId.trim() ? rawUserId.trim() : undefined;
+      const targets = subscriptions.list(targetUserId);
+
       const results = await Promise.all(
-        subscriptions.list().map(async (sub) => {
+        targets.map(async (sub) => {
           const response = await sendPushNotification(sub, payload, vapidKeys, VAPID_SUBJECT);
           if (response.status === 404 || response.status === 410) {
             subscriptions.remove(sub.endpoint);
